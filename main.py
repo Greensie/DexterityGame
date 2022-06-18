@@ -1,9 +1,8 @@
 import pygame
 from pygame.locals import (
 K_ESCAPE,
-K_i,
 MOUSEBUTTONDOWN,
-MOUSEWHEEL,
+MOUSEBUTTONUP,
 )
 import sys
 import random
@@ -16,7 +15,6 @@ clock = pygame.time.Clock()
 #colors
 black = (0, 0, 0)
 white = (255, 255, 255)
-grey = (50, 0, 176)
 
 #buttons
 font = pygame.font.SysFont('Arial Black', 16, False, False)
@@ -27,7 +25,6 @@ scr_h = 720
 
 #timers for the game
 spawntime = 1000
-changedirtime = 250
 timetodie = 1000
 
 #definitions and classes
@@ -38,6 +35,7 @@ def update_keys(self, pressed_keys):
 def current_milli_time():
     return round(time.time() * 1000)
 
+#class for buttons
 class Button(pygame.sprite.Sprite):
     def __init__(self, text, x, y):
         super(Button, self).__init__()
@@ -59,45 +57,40 @@ class Button(pygame.sprite.Sprite):
         )
         self.current = self.surf
 
-
     def draw(self, screen):
         screen.blit(self.current, self.rect)
         screen.blit(self.text, self.rect2)
 
     def update(self):
-        (x, y) = pygame.mouse.get_pos()
-        if x > self.rect.left and x < self.rect.right and y > self.rect.top and y < self.rect.bottom:
+        (mx, my) = pygame.mouse.get_pos()
+        if mx > self.rect.left and mx < self.rect.right and my > self.rect.top and my < self.rect.bottom:
             self.current = self.surf2
         else:
             self.current = self.surf
 
 
 
-
-
-
-# klasa objektu sprawdzającego czas reakcji
+# class for square targets
 class Target(pygame.sprite.Sprite):
     def __init__(self):
         super(Target, self).__init__()
         self.surf = pygame.Surface((75, 75))
         self.surf = pygame.image.load("tareget.png").convert()
-        self.surf.set_colorkey(black)
         self.rect = self.surf.get_rect(
             center=(
                 random.randint(scr_w/2 - 300 + 200, scr_w/2 + 150 + 300),
                 random.randint(scr_h/2 - 200, scr_h/2 + 200)
             )
         )
-        self.speed = random.randint(1, 10)
-        self.isAlive = True
+        self.speed = random.randint(1, 2)
         self.Start = current_milli_time()
         self.Next = 0
         self.movedirx = random.randrange(-1, 2, 1)
         self.movediry = random.randrange(-1, 2, 1)
         self.Die = current_milli_time()
+        self.deathtimer = 0
 
-    def update(self): #add flag for existing one of targets
+    def update(self):
         if  current_milli_time() - self.Start > self.Next:
             self.movedirx = random.randrange(-1, 2, 1)
             self.movediry = random.randrange(-1, 2, 1)
@@ -106,70 +99,113 @@ class Target(pygame.sprite.Sprite):
 
         if current_milli_time() - self.Die > timetodie:
             self.kill()
-            self.isAlive = False
 
         self.rect.move_ip(self.movedirx * self.speed, self.movediry * self.speed)
 
         if self.rect.right < 0 or self.rect.left < 0:
             self.kill()
-            self.isAlive = False
         elif self.rect.bottom < 0 or self.rect.top < 0:
             self.kill()
-            self.isAlive = False
         elif self.rect.right > 1250:
             self.kill()
-            self.isAlive = False
         elif self.rect.bottom > 660:
             self.kill()
-            self.isAlive = False
         elif self.rect.top < 60:
             self.kill()
-            self.isAlive = False
         elif self.rect.left < 435:
             self.kill()
-            self.isAlive = False
 
-    def checkIfAlive(self):
-        if self.isAlive == False:
-            addtarget
-        #elif self.isAlive == True:
-
+    def deathtimer(self): #keeping record of time needed to kill target
+        if current_milli_time() - self.Die > timetodie:
+            self.kill()
+            self.deathtimer = timetodie
+        else:
+            self.deathtimer = current_milli_time() - self.Die
 
 
 
 # setting up the screen
 screen = pygame.display.set_mode([scr_w, scr_h])
 instruction = pygame.image.load("Instruction.png", ).convert()
+
 #
 addtarget = pygame.USEREVENT + 1
 pygame.time.set_timer(addtarget, spawntime)
 
 #flags
-running = True
+mainmenu = True
+running = False
 onealive = True
+clicking = False
 
 # targets for the player
 target = Target()
 all_sprites = pygame.sprite.Group()
 all_sprites.add(target)
 
-button = Button('Start 1 ',75, 70)
-button3 = Button('Start 2',225, 70)
-button2 = Button('Sound',225, 150)
-button4 = Button('Hard mode',75, 150)
+#Menu buttons
+button = Button('Start 1 ', 75, 70)
+button3 = Button('Start 2', 225, 70)
+button2 = Button('Sound', 225, 150)
+button4 = Button('Stop', 75, 150)
+
+score = 0
+
+# creating a main menu for the player to start the game when wanted to not in start of application
+
+while mainmenu:
+    (mx, my) = pygame.mouse.get_pos()
+
+    for event in pygame.event.get():
+        if event.type == MOUSEBUTTONDOWN:
+            if event.button == 1:
+                if (mx < button.rect2.right and mx > button.rect2.left and my > button.rect2.top and my < button.rect2.bottom):
+                    running = True
+                    mainmenu = False
+        elif event.type == pygame.QUIT:
+                mainmenu = False
+
+    screen.fill(white)
+    # creating blank surface inside the window
+    surf = pygame.Surface((800, 600))
+    surf.fill(black)
+    rect = surf.get_rect()
+    surf_center = (
+        (scr_w - surf.get_width()) / 2 + 200,
+        (scr_h - surf.get_height()) / 2
+    )
+    screen.blit(surf, surf_center)
+    screen.blit(instruction, (0, 300))
+    button.draw(screen)
+    button2.draw(screen)
+    button3.draw(screen)
+    button4.draw(screen)
+    button.update()
+    button2.update()
+    button3.update()
+    button4.update()
+    pygame.display.flip()
+
 
 # main loop
 while running:
 
-    # quting the game
+    (mx, my) = pygame.mouse.get_pos()
+    #quting the game
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
         elif event.type == K_ESCAPE:
             running = False
+            pygame.quit()
         elif event.type == MOUSEBUTTONDOWN:
-            (x, y) = pygame.mouse.get_pos()
-            #print(x, y)
+            if event.button == 1:
+                clicking = True
+                if (mx < button3.rect2.right and mx > button3.rect2.left and my > button3.rect2.top and my < button3.rect2.bottom):
+                    running = False
+                    mainmenu = True
+        elif event.type == MOUSEBUTTONUP:
+                clicking = False
         elif event.type == addtarget:
             new_target = Target()
             all_sprites.add(new_target)
@@ -198,15 +234,19 @@ while running:
     button3.update()
     button4.update()
 
+
     for entity in all_sprites:
         screen.blit(entity.surf, entity.rect)
+        if mx < entity.rect.right and mx > entity.rect.left  and my > entity.rect.top  and my < entity.rect.bottom:
+            if clicking == True:
+                entity.kill()
 
 
 
     clock.tick(60)
     all_sprites.update() #add mouse event to kill and update
+    #target.deathtimer()
 
     pygame.display.flip()
-
 
 pygame.quit()
